@@ -22,8 +22,3 @@ resource "azurerm_resource_group" "rgpipe"{
  location = "Central India"
 }
 
-resource "azurerm_resource_group" "rgpipe2"{
- name = "infrarg2"
- location = "Central India"
-}
-
