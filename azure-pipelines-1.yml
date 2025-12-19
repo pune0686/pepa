@@ -1,0 +1,81 @@
+trigger:
+- feature/*
+- main
+parameters:
+- name: ScanningRequired
+  displayName: Scanning Required
+  type: string
+  default: 'false'
+  values:
+  - true
+  - false
+
+jobs:
+- job: TerraforInitPlan
+  displayName: Terraform Job for Init and Plan
+  pool: myagentpool
+  steps:
+  - task: TerraformInstaller@1
+    displayName: Install Tool
+    inputs:
+      terraformVersion: 'latest'
+
+  - task: TerraformTask@5
+    displayName: Initialization
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      backendServiceArm: 'SCN_PRIME'
+      backendAzureRmStorageAccountName: 'mystgforpipe12'
+      backendAzureRmContainerName: 'mycontain1'
+      backendAzureRmKey: 'pipecicd.tfstate'
+  - task: TerraformTask@5
+    displayName: Planning
+    inputs:
+      provider: 'azurerm'
+      command: 'plan'
+      environmentServiceNameAzureRM: 'SCN_PRIME'
+
+- job: ScannigJob
+  condition: eq(${{parameters.ScanningRequired}}, 'true')
+  displayName: Scanning wala job
+  pool: myagentpool
+  steps:
+  - task: tfsec@1
+    inputs:
+      version: 'v1.26.0'
+      publishTestResults: false
+
+- job: ManualValidation
+  displayName: Manual Validation karna hai
+  dependsOn: TerraforInitPlan
+  condition: and(succeeded(), eq(variables['Build.Source.Branch'], 'refs/heads/main'))
+  pool: server
+  steps:
+  - task: ManualValidation@0
+    inputs:
+      notifyUsers: 'anjaliagarwal1990@gmail.com'
+      approvers: 'anjaliagarwal1990@gmail.com'
+      instructions: 'Plan check kar le'
+
+- job: TerraformApply
+  displayName: Terraform Apply wala job
+  dependsOn: ManualValidation
+  pool: myagentpool
+  steps:
+  - task: TerraformTask@5
+    displayName: Apply job wala Initiazlization
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      backendServiceArm: 'SCN_PRIME'
+      backendAzureRmStorageAccountName: 'mystgforpipe12'
+      backendAzureRmContainerName: 'mycontain1'
+      backendAzureRmKey: 'pipecicd.tfstate'
+  - task: TerraformTask@5
+    displayName: Terrafor Apply karo
+    condition: and(succeeded(), eq(variables['Build.Source.Branch'], 'refs/heads/main'))
+    inputs:
+      provider: 'azurerm'
+      command: 'apply'
+      environmentServiceNameAzureRM: 'SCN_PRIME'
